@@ -13,72 +13,90 @@ export const searchAndAnalyze = async (req: Request, res: Response) => {
 
   try {
     // 1. Log search history
-    const searchLog = new SearchHistory({ query });
-    
-    // 2. Search products via Rainforest
-    const searchResults = await rainforest.searchProducts(query);
-    searchLog.resultCount = searchResults.length;
-    await searchLog.save();
-
-    if (searchResults.length === 0) {
-      return res.status(404).json({ error: 'No products found' });
-    }
-
-    // 3. For the demo, we analyze the first search result
-    const topAsin = searchResults[0].asin;
-    
-    // 4. Check if we have this product in cache
-    let product = await Product.findOne({ amazonId: topAsin });
-    
-    if (!product || (Date.now() - product.lastFetched.getTime() > 24 * 60 * 60 * 1000)) {
-      // Fetch fresh details
-      const details = await rainforest.getProductDetails(topAsin);
-      
-      const productData = {
-        amazonId: details.asin,
-        title: details.title,
-        brand: details.brand,
-        category: details.categories?.[0]?.name || 'Uncategorized',
-        price: details.price?.value ? `${details.price.currency || '$'}${details.price.value}` : 'N/A',
-        image: details.main_image?.link,
-        rating: details.rating,
-        reviewsCount: details.ratings_total,
-        description: details.description,
-        ratingBreakdown: {
-          '5 Stars': details.rating_breakdown?.five_star?.percentage || 0,
-          '4 Stars': details.rating_breakdown?.four_star?.percentage || 0,
-          '3 Stars': details.rating_breakdown?.three_star?.percentage || 0,
-          '2 Stars': details.rating_breakdown?.two_star?.percentage || 0,
-          '1 Star': details.rating_breakdown?.one_star?.percentage || 0,
-        },
-        topReviews: details.top_reviews?.map((r: any) => ({
-          body: r.body,
-          rating: r.rating,
-          title: r.title
-        })) || [],
-        lastFetched: new Date()
-      };
-
-      if (!product) {
-        product = new Product(productData);
-      } else {
-        Object.assign(product, productData);
+    try {
+      const searchLog = new SearchHistory({ query });
+      const searchResults = await rainforest.searchProducts(query);
+      if (searchResults.length > 0) {
+        searchLog.resultCount = searchResults.length;
+        await searchLog.save();
       }
-      await product.save();
+
+      if (searchResults.length === 0) {
+        return res.status(404).json({ error: `No products found matching "${query}"` });
+      }
+
+      // 3. For the demo, we analyze the first search result
+      const topAsin = searchResults[0].asin;
+      
+      // 4. Check if we have this product in cache
+      let product = null;
+      try {
+        product = await Product.findOne({ amazonId: topAsin });
+      } catch (dbError) {
+        console.warn('Database not available, skipping cache lookup:', dbError.message);
+      }
+      
+      if (!product || (Date.now() - product.lastFetched.getTime() > 24 * 60 * 60 * 1000)) {
+        // Fetch fresh details
+        const details = await rainforest.getProductDetails(topAsin);
+        
+        const productData = {
+          amazonId: details.asin,
+          title: details.title,
+          brand: details.brand,
+          category: details.categories?.[0]?.name || 'Uncategorized',
+          price: details.price?.value ? `${details.price.currency || '$'}${details.price.value}` : 'N/A',
+          image: details.main_image?.link,
+          rating: details.rating,
+          reviewsCount: details.ratings_total,
+          description: details.description,
+          ratingBreakdown: {
+            '5 Stars': details.rating_breakdown?.five_star?.percentage || 0,
+            '4 Stars': details.rating_breakdown?.four_star?.percentage || 0,
+            '3 Stars': details.rating_breakdown?.three_star?.percentage || 0,
+            '2 Stars': details.rating_breakdown?.two_star?.percentage || 0,
+            '1 Star': details.rating_breakdown?.one_star?.percentage || 0,
+          },
+          topReviews: details.top_reviews?.map((r: any) => ({
+            body: r.body,
+            rating: r.rating,
+            title: r.title
+          })) || [],
+          lastFetched: new Date()
+        };
+
+        if (!product) {
+          product = new Product(productData);
+        } else {
+          Object.assign(product, productData);
+        }
+        
+        try {
+          await product.save();
+        } catch (dbError) {
+          console.warn('Database not available, skipping cache save:', dbError.message);
+        }
+      }
+
+      // 5. Generate ML Placeholders
+      const insights = getAIPlaceholders(product.title);
+
+      // 6. Return full payload
+      res.json({
+        product,
+        insights
+      });
+    } catch (innerError: any) {
+      console.error('Inner Search API Error:', innerError);
+      res.status(500).json({ 
+        error: 'Analysis failed', 
+        details: innerError.message,
+        hint: 'This could be due to a missing Rainforest API key or a database connection issue.' 
+      });
     }
-
-    // 5. Generate ML Placeholders
-    const insights = getAIPlaceholders(product.title);
-
-    // 6. Return full payload
-    res.json({
-      product,
-      insights
-    });
-
   } catch (error: any) {
-    console.error('Search API Error:', error);
-    res.status(500).json({ error: 'Internal server error during analysis' });
+    console.error('Global Search API Error:', error);
+    res.status(500).json({ error: 'System error during analysis' });
   }
 };
 

@@ -186,11 +186,59 @@ const LandingView = ({ onSearch, isLoading }: LandingProps) => {
           Unlock deep consumer insights by analyzing thousands of reviews in seconds. High-precision sentiment mapping and feature extraction for enterprise teams.
         </motion.p>
 
+        {/* Featured Card (Moved Before Search) */}
+        <motion.div 
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="w-full max-w-4xl mx-auto mb-16"
+        >
+          <div className="glass-card rounded-[2.5rem] p-6 lg:p-10 flex flex-col lg:flex-row items-center gap-10 text-left bg-white/60 dark:bg-slate-800/60 relative group">
+            <div className="w-full lg:w-2/5 aspect-square rounded-3xl overflow-hidden bg-slate-100 dark:bg-slate-900 shadow-inner relative group/img">
+              <img 
+                alt="Premium Headphones" 
+                className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" 
+                src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=2070&auto=format&fit=crop" 
+              />
+              <div className="absolute top-4 left-4">
+                <span className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white shadow-sm">
+                  Electronics
+                </span>
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col justify-center">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-2xl lg:text-3xl font-bold dark:text-white">Quantum Ultra Pro</h3>
+                <div className="flex items-center gap-1.5 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded-lg">
+                  <Star className="text-yellow-500 fill-yellow-500" size={16} />
+                  <span className="text-sm font-bold text-yellow-700 dark:text-yellow-400">4.8</span>
+                  <span className="text-xs text-slate-400 font-medium">(12.4k reviews)</span>
+                </div>
+              </div>
+              
+              <p className="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed text-sm font-medium">
+                High-fidelity audio with active noise cancellation and 40-hour battery life. Top-rated for comfort and build quality.
+              </p>
+
+              <div className="ai-glow bg-purple-50/50 dark:bg-purple-900/10 rounded-2xl p-5 border-purple-100/50 dark:border-purple-800/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Brain className="text-purple-600 dark:text-purple-400" size={18} />
+                  <span className="text-xs font-bold text-purple-900 dark:text-purple-300">AI Summary Available</span>
+                </div>
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 leading-relaxed">
+                  92% of users mention "Exceptional Comfort" as their primary purchasing driver. Update firmware to v2.4 to resolve reported jitter.
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Search Container */}
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.5 }}
           className="w-full max-w-3xl mx-auto mb-16"
         >
           <form onSubmit={handleSubmit} className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-full p-2.5 flex items-center shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-200 dark:border-slate-700">
@@ -209,7 +257,7 @@ const LandingView = ({ onSearch, isLoading }: LandingProps) => {
               type="submit"
               className="bg-primary hover:bg-blue-700 text-white px-8 py-3.5 rounded-full font-bold transition-all active:scale-[0.98] shadow-lg shadow-blue-500/30 flex items-center gap-2"
             >
-              {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Search'}
+              {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Analyze'}
             </button>
           </form>
           <div className="mt-6 flex flex-wrap gap-4 justify-center">
@@ -527,9 +575,10 @@ export default function App() {
       const response = await axios.get(`/api/analyze?q=${encodeURIComponent(query)}`);
       setAnalysisData(response.data);
       setView('dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Analysis failed:', error);
-      alert('Failed to analyze product. Please check your API key and network.');
+      const msg = error.response?.data?.details || error.response?.data?.error || 'Failed to analyze product. Please check your API key and network.';
+      alert(msg);
     } finally {
       setIsLoading(false);
     }

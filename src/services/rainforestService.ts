@@ -1,18 +1,19 @@
 import axios from 'axios';
 
-const RAINFOREST_KRY = process.env.RAINFOREST_API_KEY;
+const RAINFOREST_KEY = process.env.RAINFOREST_API_KEY;
 const BASE_URL = 'https://api.rainforestapi.com/request';
 
 export const searchProducts = async (q: string) => {
-  if (!RAINFOREST_KRY) {
+  if (!RAINFOREST_KEY) {
     console.warn('RAINFOREST_API_KEY is not set. Returning mock search results.');
     return mockSearchResults(q);
   }
 
   try {
+    console.log(`Searching Amazon for: "${q}"...`);
     const response = await axios.get(BASE_URL, {
       params: {
-        api_key: RAINFOREST_KRY,
+        api_key: RAINFOREST_KEY,
         type: 'search',
         amazon_domain: 'amazon.com',
         search_term: q,
@@ -20,32 +21,45 @@ export const searchProducts = async (q: string) => {
       }
     });
 
-    return response.data.search_results || [];
-  } catch (error) {
-    console.error('Rainforest Search Error:', error);
+    if (response.data.request_info && !response.data.request_info.success) {
+      console.error('Rainforest API returned success:false. Message:', response.data.request_info.message || 'No message provided');
+      return [];
+    }
+
+    const results = response.data.search_results || [];
+    console.log(`Found ${results.length} results.`);
+    return results;
+  } catch (error: any) {
+    console.error('Rainforest Search Error:', error.response?.data || error.message);
     return [];
   }
 };
 
 export const getProductDetails = async (asin: string) => {
-  if (!RAINFOREST_KRY) {
+  if (!RAINFOREST_KEY) {
     console.warn('RAINFOREST_API_KEY is not set. Returning mock product details.');
     return mockProductDetails(asin);
   }
 
   try {
+    console.log(`Fetching details for ASIN: ${asin}...`);
     const response = await axios.get(BASE_URL, {
       params: {
-        api_key: RAINFOREST_KRY,
+        api_key: RAINFOREST_KEY,
         type: 'product',
         amazon_domain: 'amazon.com',
         asin: asin
       }
     });
 
+    if (!response.data.product) {
+      console.error('Rainforest Detail Error: product data missing from response.', response.data);
+      throw new Error('Product not found in Rainforest API response');
+    }
+
     return response.data.product;
-  } catch (error) {
-    console.error('Rainforest Detail Error:', error);
+  } catch (error: any) {
+    console.error('Rainforest Detail Error:', error.response?.data || error.message);
     throw error;
   }
 };
