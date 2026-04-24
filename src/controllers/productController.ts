@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Product from '../models/Product';
 import SearchHistory from '../models/SearchHistory';
-import * as rainforest from '../services/rainforestService';
+import * as amazonService from '../services/amazonService';
 import { getAIPlaceholders } from '../services/placeholderService';
 
 export const searchAndAnalyze = async (req: Request, res: Response) => {
@@ -14,11 +14,17 @@ export const searchAndAnalyze = async (req: Request, res: Response) => {
   try {
     // 1. Log search history
     try {
-      const searchLog = new SearchHistory({ query });
-      const searchResults = await rainforest.searchProducts(query);
-      if (searchResults.length > 0) {
-        searchLog.resultCount = searchResults.length;
-        await searchLog.save();
+      const searchResults = await amazonService.searchProducts(query);
+      
+      // Attempt to log search history, but don't fail if DB is offline
+      try {
+        const searchLog = new SearchHistory({ query });
+        if (searchResults.length > 0) {
+          searchLog.resultCount = searchResults.length;
+          await searchLog.save();
+        }
+      } catch (dbError: any) {
+        console.warn('Database error while saving search history (skipping):', dbError.message);
       }
 
       if (searchResults.length === 0) {
@@ -38,7 +44,7 @@ export const searchAndAnalyze = async (req: Request, res: Response) => {
       
       if (!product || (Date.now() - product.lastFetched.getTime() > 24 * 60 * 60 * 1000)) {
         // Fetch fresh details
-        const details = await rainforest.getProductDetails(topAsin);
+        const details = await amazonService.getProductDetails(topAsin);
         
         const productData = {
           amazonId: details.asin,
@@ -91,7 +97,7 @@ export const searchAndAnalyze = async (req: Request, res: Response) => {
       res.status(500).json({ 
         error: 'Analysis failed', 
         details: innerError.message,
-        hint: 'This could be due to a missing Rainforest API key or a database connection issue.' 
+        hint: 'This could be due to a missing RapidAPI key or a database connection issue.' 
       });
     }
   } catch (error: any) {

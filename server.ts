@@ -20,9 +20,14 @@ async function startServer() {
 
   // DB Connection
   const MONGODB_URI = process.env.DATABASE_URL || 'mongodb://localhost:27017/reviewiq';
-  mongoose.connect(MONGODB_URI)
+  mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+  })
     .then(() => console.log('✅ Connected to MongoDB'))
-    .catch(err => console.error('❌ MongoDB connection error:', err));
+    .catch(err => {
+      console.error('❌ MongoDB connection error:', err.message);
+      console.warn('⚠️  Application will run without local database persistence.');
+    });
 
   // Middleware
   app.use(helmet({

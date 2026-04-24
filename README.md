@@ -27,11 +27,11 @@ AI-powered product review intelligence platform for deep consumer insights and s
 1. Create a `.env` file in the root directory.
 2. Add your API keys and configuration:
    ```env
-   RAINFOREST_API_KEY=your_rainforest_api_key_here
+   RAPIDAPI_KEY=your_rapidapi_key_here
    DATABASE_URL=mongodb://localhost:27017/reviewiq
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
-   *Note: If you don't have a Rainforest API key yet, the app will run with mock data for demo purposes.*
+   *Note: If you don't have a RapidAPI key yet, the app will run with mock data for demo purposes. This app uses the "Real-Time Amazon Data" API from RapidAPI.*
 
 ### Running the App
 Start the development server (runs both Vite and Express):
